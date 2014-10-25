@@ -2,6 +2,7 @@
 import bs4
 import requests
 import csv
+import time
 # import sys
 import re
 import cart_scrape
@@ -93,9 +94,8 @@ def tofile(text, filename, boolhtml):
 		# 	f.close()
 	else:
 		try:
-			# fieldnames = [i for i, j in text.items()]
 			fieldnames = ['cart', 'url']
-			_csv = open(filename, 'wb')
+			_csv = open(filename, 'w')
 
 			csvwriter = csv.DictWriter(_csv, delimiter=',', fieldnames=fieldnames, quotechar='"')
 			csvwriter.writerow(dict((fn, fn) for fn in fieldnames))
@@ -128,38 +128,13 @@ def main(boolhtml):
 		newdict = {}
 		for i, j in cartdict.iteritems():
 			cart_scrape.main(j, True)  # yields .csvs of each pod
+			time.sleep(1)
 			# thing = cart_scrape.find_carts(j, True)  # returns dicts
 			pass
 
 		# tofile(thing, 'carts.csv', False)
 
 
-def menu(title, optionlist):
-	print(30 * '-')
-	print('  {}'.format(title.upper()))
-	print(30 * '-')
-	for num, option in enumerate(optionlist):
-		print("{}. {}".format(num + 1, option))
-
-	_is_valid = 0
-	while not _is_valid:
-		try:
-			choice = int(raw_input('Enter your choice [1-{}]: '.format(len(optionlist))))
-			_is_valid = 1  # break the loop
-		except ValueError, e:
-			print("'%s' is not a valid integer." % e.args[0].split(": ")[1])
-
-	if choice == 1:
-		print("Scraping site...")
-		main(False)
-	elif choice == 2:
-		print("Choose location:")
-		locations = [i for i, j in scrape_list()]
-		print locations
-		# parse locations?
-		# invoke cart_scrape on selected pod
-
-
 if __name__ == '__main__':
+	# sys.argv to come later
 	main(False)
-	# menu("PDX food cart scraper", ["Scrape www.foodcartsportland.com", "Scrape individual cart pod"])
