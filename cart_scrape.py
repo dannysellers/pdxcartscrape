@@ -6,6 +6,7 @@ __author__ = 'danny'
 import re
 import csv
 import os
+from types import *
 import sys
 
 import requests
@@ -23,21 +24,28 @@ class FoodCart():
 		:param div: HTML element containing all information about the cart
 		:return: FoodCart object
 		"""
-		cartdict = scrape_cart(div)
-		self.name = cartdict['cart_name']
-		self.url = cartdict['cart_url']
-		self.location = cartdict['location']
-		self.hours = cartdict['hours']
-		self.story = cartdict['story']
+		self.div = div  # is there any way to call scrape_div upon initialization,
+		# allowing the other variables to be set just upon construction? e.g. line 116
+		self.name = ''
+		self.url = ''
+		self.location = ''
+		self.hours = ''
+		self.story = ''
 
-	def scrape_div (self, div):
+	# self.name = self.cartdict['cart_name']
+	# self.url = self.cartdict['cart_url']
+	# self.location = self.cartdict['location']
+	# self.hours = self.cartdict['hours']
+	# self.story = self.cartdict['story']
+
+	@property
+	def scrape_div (self):
 		"""
 		Scrapes individual cart information from div
-		:param div: HTML element containing all information about the cart
 		:return: information for class properties
 		"""
-		title = div.find('a', {'rel': 'bookmark'})
-		post = div.find('div', {'class': 'entry-content'})
+		title = self.div.find('a', {'rel': 'bookmark'})
+		post = self.div.find('div', {'class': 'entry-content'})
 		try:
 			cart_url = title.get('href')
 
@@ -58,13 +66,17 @@ class FoodCart():
 
 		# find 'Location: ', the element prior
 
+		except AttributeError, e:
+			print("Error ({0}): {1}".format(type(e), e))
+			return
 		except BaseException, e:
-			print type(e), e
+			print("I/O error({0}): {1}".format(type(e), e))
+			# print type(e), e
 			return
 
 		try:
 			story = str(post.contents[6])
-		except BaseException, e:
+		except BaseException as e:
 			print("Couldn't find {} story".format(cart_name))
 			story = ''
 			print e
@@ -77,7 +89,14 @@ class FoodCart():
 
 		hours = getmatch(hours, hourlist)
 
-		return dict(cart_name = cart_name, cart_url = cart_url, location = location, hours = hours, story = story)
+		self.name = cart_name
+		self.url = cart_url
+		self.location = location
+		self.hours = hours
+		self.story = story
+
+		return {'cart_name': self.name, 'cart_url': self.url, 'location': self.location, 'hours': self.hours,
+				'story': self.story}
 
 
 def find_carts (url):
@@ -97,22 +116,35 @@ def find_carts (url):
 	page = 1
 	cartlist = []
 	_cartlist = []
-	for cart in carts:
-		# pagination
-		_cart = FoodCart(cart)
-		if _cart:
-			cartlist.append(_cart)
 
-	# if 'Next Page' not in str(carts[-1]):  # final page in sequence
-	if 'Next Page' in str(carts[-1]):
+	# checking for any subsequent or previous pages first eliminates an issue with
+	# parsing carts[-1], which would just have 'Next' and 'Previous' links
+
+	if 'Next Page' in str(carts[-1]):  # the first page of multiple
+		for cart in carts[:-1]:
+			_cart = FoodCart(cart)
+			# cartlist.append(_cart.scrape_div() if _cart)
+			if _cart:
+				cartlist.append(_cart.scrape_div)
+
 		page += 1
+		# creates an additional list for carts on the next page
 		_cartlist.append(find_carts(url + 'page/{}'.format(page)))
+		# extracts items from the list, rather than having nested lists of variable depth
 		cartlist.append(_cart for _cart in _cartlist)
-	# cartlist.append(_cart)  # creates a list of dicts
-	else:
+	elif 'Previous Page' in str(carts[-1]) and 'Next Page' not in str(carts[-1]):  # the final page
+		for cart in carts[:-1]:
+			_cart = FoodCart(cart)
+			# cartlist.append(_cart.scrape_div() if _cart.exists)
+			if _cart:
+				cartlist.append(_cart.scrape_div)
 		return cartlist
-
-	# return cartlist  # this results in nested lists
+	else:  # single page pods, scrape all carts
+		for cart in carts:
+			_cart = FoodCart(cart)
+			if _cart:
+				cartlist.append(_cart.scrape_div)
+		return cartlist
 
 
 def getmatch (txt, regexlist, default = 'N/A'):
@@ -131,56 +163,6 @@ def getmatch (txt, regexlist, default = 'N/A'):
 		return default
 
 
-# def scrape_cart (div):
-# """
-# Scrapes individual cart information from div
-# :param div: HTML element containing all information about the cart
-# 	:return: a dict containing cart name, url, location, hours, and 'story'
-# 	"""
-# 	title = div.find('a', {'rel': 'bookmark'})
-# 	post = div.find('div', {'class': 'entry-content'})
-# 	try:
-# 		cart_url = title.get('href')
-#
-# 		if u'\u2019' in title.text:  # str() can't deal with u'\u2019',
-# 			# which is a contextual apostrophe
-# 			cart_name = re.sub(u'\u2019', "'", title.text)
-# 		elif u'\xfc' in title.text:
-# 			cart_name = re.sub(u'\xfc', "ü", title.text)
-# 		else:
-# 			cart_name = str(title.text)
-#
-# 		loclist = [re.compile(r'Location:\s</strong>(.+)<br/>'),
-# 				   re.compile(r'Location:\W(\w+\s\w+\sand\s\w+),'),
-# 				   re.compile(r'Location:\S+</strong>(.+)<br/>'),
-# 				   re.compile(r'Location:\s</strong>(.+)<\w+.*<br/>')]
-#
-# 		location = getmatch(str(post.contents[2]), loclist)
-#
-# 	# find 'Location: ', the element prior
-#
-# 	except BaseException, e:
-# 		print type(e), e
-# 		return
-#
-# 	try:
-# 		story = str(post.contents[6])
-# 	except BaseException, e:
-# 		print("Couldn't find {} story".format(cart_name))
-# 		story = ''
-# 		print e
-#
-# 	hours = str(repr(post.contents[2].contents[-1]))
-# 	hourlist = [re.compile(r'<strong>Hours:(.*)</strong>'),
-# 				re.compile(r'Hours:\s</strong>(.*)</p>'),
-# 				re.compile(r'Hours:\s</strong></strong>(.*)</p>'),
-# 				re.compile(r'(.*)')]  # this negates all of the above, and may not even work...
-#
-# 	hours = getmatch(hours, hourlist)
-#
-# 	return dict(cart_name = cart_name, cart_url = cart_url, location = location, hours = hours, story = story)
-
-
 def tofile (list, fname, boolcsv):
 	"""
 	Writes dicts from list to file, either as CSV or text as HTML
@@ -192,17 +174,18 @@ def tofile (list, fname, boolcsv):
 	if boolcsv:
 		fname += '.csv'
 		fieldnames = [i for i in list[0]]  # dict at text[0] should contain headers
-		assert isinstance(fieldnames, list)
+		assert type(fieldnames) is ListType
 		_csv = open(fname, 'w')  # 'w' here? or 'wb'?
 		_csvwriter = csv.DictWriter(_csv, fieldnames = fieldnames, delimiter = ',', quotechar = '"')
 		_csvwriter.writeheader()
 
-		for row in list:
-			if row:
+		for cart in list:
+			if cart and type(cart) == dict:
 				try:
-					_csvwriter.writerow(row)
+					_csvwriter.writerow(cart)
 				except IOError, e:
 					print type(e), e
+			# for i, j in row.iteritems():
 		_csv.close()
 	else:
 		fname += '.html'
@@ -211,16 +194,17 @@ def tofile (list, fname, boolcsv):
 			assert isinstance(cart, FoodCart)
 			_text += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
 				cart.url, cart.name, cart.location, cart.hours)
-			# assert isinstance(cart, dict)
-			# _text += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-			# 	cart['cart_url'], cart['cart_name'], cart['location'], cart['hours'])
+		# assert isinstance(cart, dict)
+		# _text += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+		# 	cart['cart_url'], cart['cart_name'], cart['location'], cart['hours'])
 		try:
 			f = open(fname, 'w')
 			f.write(_text)
 		except IOError, e:
 			print(type(e), e)
 		# sys.exit('Could not open file: ' + fname)
-		f.close()
+		finally:
+			f.close()
 
 
 def ensure_dir (folder):
@@ -243,7 +227,8 @@ def main (url, boolcsv):
 	filename = folder + str(re.findall(r'/location/*/\S+/(\S+)/$', url)[0])
 
 	pod_carts = find_carts(url)
-	if pod_carts:
+	if pod_carts:  # the likelihood of this being False seems low / to have
+	# been caught elsewhere. to confirm
 		tofile(pod_carts, filename, boolcsv)
 	else:
 		exit(1)
