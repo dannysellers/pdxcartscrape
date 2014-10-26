@@ -11,7 +11,8 @@ Running foodcarts.py will retrieve information from all carts, while cart_scrape
 
 To do
 -----
-    + Finish wrangling all data variations
+    + Finish accounting for all data variations
     + Implement export of location list
-    + Rewrite with classes
+    + Convert foodcart to class
+    + Implement database connectivity
     + Turn into webapp

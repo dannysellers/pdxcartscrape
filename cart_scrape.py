@@ -28,20 +28,25 @@ def find_carts (url):
 	# all carts are cleanly stored within <div id="content">
 	carts = soup.find('div', {'id': 'content'}).findAll('div', recursive = False)
 
-	page = 0
+	page = 1
 	cartlist = []
+	_cartlist = []
 	for cart in carts:
 		# pagination
+		_cart = scrape_cart(cart)
+		if _cart:
+			cartlist.append(_cart)
+
+	# if 'Next Page' not in str(carts[-1]):  # final page in sequence
+	if 'Next Page' in str(carts[-1]):
 		page += 1
-		if 'Next Page' not in str(carts[-1]):  # final page in sequence
-			_cart = scrape_cart(cart)
-			if 'Previous Page' not in str(carts[-1]):  # first page in sequence
-		else:  # pages => n-1
-			_cart = scrape_cart(cart)
+		_cartlist.append(find_carts(url + 'page/{}'.format(page)))
+		cartlist.append(_cart for _cart in _cartlist)
+		# cartlist.append(_cart)  # creates a list of dicts
+	else:
+		return cartlist
 
-		cartlist.append(_cart)  # creates a list of dicts
-
-	return cartlist
+	# return cartlist  # this results in nested lists
 
 
 def getmatch (txt, regexlist, default = 'N/A'):
@@ -121,6 +126,7 @@ def tofile (list, fname, boolcsv):
 	if boolcsv:
 		fname += '.csv'
 		fieldnames = [i for i in list[0]]  # dict at text[0] should contain headers
+		assert isinstance(fieldnames, list)
 		_csv = open(fname, 'w')  # 'w' here? or 'wb'?
 		_csvwriter = csv.DictWriter(_csv, fieldnames = fieldnames, delimiter = ',', quotechar = '"')
 		_csvwriter.writeheader()
@@ -168,7 +174,10 @@ def main (url, boolcsv):
 	filename = folder + str(re.findall(r'/location/*/\S+/(\S+)/$', url)[0])
 
 	pod_carts = find_carts(url)
-	tofile(pod_carts, filename, boolcsv)
+	if pod_carts:
+		tofile(pod_carts, filename, boolcsv)
+	else:
+		exit(1)
 
 
 if __name__ == '__main__':
