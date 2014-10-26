@@ -11,7 +11,73 @@ import sys
 import requests
 import bs4
 
+
 UA = {'User-agent': 'Mozilla/5.0'}
+
+
+class FoodCart():
+	def __init__ (self, div):
+		"""
+		Constructor method for FoodCart object, does nothing besides call and
+		parse existing scrape method
+		:param div: HTML element containing all information about the cart
+		:return: FoodCart object
+		"""
+		cartdict = scrape_cart(div)
+		self.name = cartdict['cart_name']
+		self.url = cartdict['cart_url']
+		self.location = cartdict['location']
+		self.hours = cartdict['hours']
+		self.story = cartdict['story']
+
+	def scrape_div (self, div):
+		"""
+		Scrapes individual cart information from div
+		:param div: HTML element containing all information about the cart
+		:return: information for class properties
+		"""
+		title = div.find('a', {'rel': 'bookmark'})
+		post = div.find('div', {'class': 'entry-content'})
+		try:
+			cart_url = title.get('href')
+
+			if u'\u2019' in title.text:  # str() can't deal with u'\u2019',
+				# which is a contextual apostrophe
+				cart_name = re.sub(u'\u2019', "'", title.text)
+			elif u'\xfc' in title.text:
+				cart_name = re.sub(u'\xfc', "ü", title.text)
+			else:
+				cart_name = str(title.text)
+
+			loclist = [re.compile(r'Location:\s</strong>(.+)<br/>'),
+					   re.compile(r'Location:\W(\w+\s\w+\sand\s\w+),'),
+					   re.compile(r'Location:\S+</strong>(.+)<br/>'),
+					   re.compile(r'Location:\s</strong>(.+)<\w+.*<br/>')]
+
+			location = getmatch(str(post.contents[2]), loclist)
+
+		# find 'Location: ', the element prior
+
+		except BaseException, e:
+			print type(e), e
+			return
+
+		try:
+			story = str(post.contents[6])
+		except BaseException, e:
+			print("Couldn't find {} story".format(cart_name))
+			story = ''
+			print e
+
+		hours = str(repr(post.contents[2].contents[-1]))
+		hourlist = [re.compile(r'<strong>Hours:(.*)</strong>'),
+					re.compile(r'Hours:\s</strong>(.*)</p>'),
+					re.compile(r'Hours:\s</strong></strong>(.*)</p>'),
+					re.compile(r'(.*)')]  # this negates all of the above, and may not even work...
+
+		hours = getmatch(hours, hourlist)
+
+		return dict(cart_name = cart_name, cart_url = cart_url, location = location, hours = hours, story = story)
 
 
 def find_carts (url):
@@ -33,7 +99,7 @@ def find_carts (url):
 	_cartlist = []
 	for cart in carts:
 		# pagination
-		_cart = scrape_cart(cart)
+		_cart = FoodCart(cart)
 		if _cart:
 			cartlist.append(_cart)
 
@@ -42,7 +108,7 @@ def find_carts (url):
 		page += 1
 		_cartlist.append(find_carts(url + 'page/{}'.format(page)))
 		cartlist.append(_cart for _cart in _cartlist)
-		# cartlist.append(_cart)  # creates a list of dicts
+	# cartlist.append(_cart)  # creates a list of dicts
 	else:
 		return cartlist
 
@@ -65,54 +131,54 @@ def getmatch (txt, regexlist, default = 'N/A'):
 		return default
 
 
-def scrape_cart (div):
-	"""
-	Scrapes individual cart information from div
-	:param div: HTML element containing all information about the cart
-	:return: a dict containing cart name, url, location, hours, and 'story'
-	"""
-	title = div.find('a', {'rel': 'bookmark'})
-	post = div.find('div', {'class': 'entry-content'})
-	try:
-		cart_url = title.get('href')
-
-		if u'\u2019' in title.text:  # str() can't deal with u'\u2019',
-			# which is a contextual apostrophe
-			cart_name = re.sub(u'\u2019', "'", title.text)
-		elif u'\xfc' in title.text:
-			cart_name = re.sub(u'\xfc', "ü", title.text)
-		else:
-			cart_name = str(title.text)
-
-		loclist = [re.compile(r'Location:\s</strong>(.+)<br/>'),
-				   re.compile(r'Location:\W(\w+\s\w+\sand\s\w+),'),
-				   re.compile(r'Location:\S+</strong>(.+)<br/>'),
-				   re.compile(r'Location:\s</strong>(.+)<\w+.*<br/>')]
-
-		location = getmatch(str(post.contents[2]), loclist)
-
-	# find 'Location: ', the element prior
-
-	except BaseException, e:
-		print type(e), e
-		return
-
-	try:
-		story = str(post.contents[6])
-	except BaseException, e:
-		print("Couldn't find {} story".format(cart_name))
-		story = ''
-		print e
-
-	hours = str(repr(post.contents[2].contents[-1]))
-	hourlist = [re.compile(r'<strong>Hours:(.*)</strong>'),
-				re.compile(r'Hours:\s</strong>(.*)</p>'),
-				re.compile(r'Hours:\s</strong></strong>(.*)</p>'),
-				re.compile(r'(.*)')]  # this negates all of the above, and may not even work...
-
-	hours = getmatch(hours, hourlist)
-
-	return dict(cart_name = cart_name, cart_url = cart_url, location = location, hours = hours, story = story)
+# def scrape_cart (div):
+# """
+# Scrapes individual cart information from div
+# :param div: HTML element containing all information about the cart
+# 	:return: a dict containing cart name, url, location, hours, and 'story'
+# 	"""
+# 	title = div.find('a', {'rel': 'bookmark'})
+# 	post = div.find('div', {'class': 'entry-content'})
+# 	try:
+# 		cart_url = title.get('href')
+#
+# 		if u'\u2019' in title.text:  # str() can't deal with u'\u2019',
+# 			# which is a contextual apostrophe
+# 			cart_name = re.sub(u'\u2019', "'", title.text)
+# 		elif u'\xfc' in title.text:
+# 			cart_name = re.sub(u'\xfc', "ü", title.text)
+# 		else:
+# 			cart_name = str(title.text)
+#
+# 		loclist = [re.compile(r'Location:\s</strong>(.+)<br/>'),
+# 				   re.compile(r'Location:\W(\w+\s\w+\sand\s\w+),'),
+# 				   re.compile(r'Location:\S+</strong>(.+)<br/>'),
+# 				   re.compile(r'Location:\s</strong>(.+)<\w+.*<br/>')]
+#
+# 		location = getmatch(str(post.contents[2]), loclist)
+#
+# 	# find 'Location: ', the element prior
+#
+# 	except BaseException, e:
+# 		print type(e), e
+# 		return
+#
+# 	try:
+# 		story = str(post.contents[6])
+# 	except BaseException, e:
+# 		print("Couldn't find {} story".format(cart_name))
+# 		story = ''
+# 		print e
+#
+# 	hours = str(repr(post.contents[2].contents[-1]))
+# 	hourlist = [re.compile(r'<strong>Hours:(.*)</strong>'),
+# 				re.compile(r'Hours:\s</strong>(.*)</p>'),
+# 				re.compile(r'Hours:\s</strong></strong>(.*)</p>'),
+# 				re.compile(r'(.*)')]  # this negates all of the above, and may not even work...
+#
+# 	hours = getmatch(hours, hourlist)
+#
+# 	return dict(cart_name = cart_name, cart_url = cart_url, location = location, hours = hours, story = story)
 
 
 def tofile (list, fname, boolcsv):
@@ -142,9 +208,12 @@ def tofile (list, fname, boolcsv):
 		fname += '.html'
 		_text = ''
 		for cart in list:
-			assert isinstance(cart, dict)
+			assert isinstance(cart, FoodCart)
 			_text += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-				cart['cart_url'], cart['cart_name'], cart['location'], cart['hours'])
+				cart.url, cart.name, cart.location, cart.hours)
+			# assert isinstance(cart, dict)
+			# _text += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+			# 	cart['cart_url'], cart['cart_name'], cart['location'], cart['hours'])
 		try:
 			f = open(fname, 'w')
 			f.write(_text)
