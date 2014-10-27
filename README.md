@@ -17,7 +17,6 @@ To do
 -----
     + Finish accounting for all data variations
     + Implement export of location list
-    + ~~Convert foodcart to class~~
     + Make FoodCart attributes populate upon construction?
     + Implement database connectivity
     + Turn into webapp
