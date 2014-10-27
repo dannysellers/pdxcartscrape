@@ -11,7 +11,7 @@ Running foodcarts.py will retrieve information from all carts, while cart_scrape
 
 If invoked with `main()`, cart_scrape.py will yield .csv list(s) or .html page(s) with table, while `find_carts()` returns a list of FoodCart objects.
 
-FoodCarts have 6 properties: `div`, the `<div>` HTML element that is parsed, `name`, `url`, `location`, `hours`, and `story`. Initialization requires passing a <div> (a la `find_carts(url)`). To populate other properties, `scrape_div()` must be run (for now?). If assigned to a variable, `scrape_div()` method returns a dict.
+FoodCarts have 6 properties: `div`, the `<div>` HTML element that is parsed, `name`, `url`, `location`, `hours`, and `story`. Initialization requires passing a `<div>` (a la `find_carts(url)`). To populate other properties, `scrape_div()` must be run (for now?). If assigned to a variable, `scrape_div()` method returns a dict.
 
 To do
 -----
