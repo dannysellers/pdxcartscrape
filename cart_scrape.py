@@ -3,12 +3,12 @@ __author__ = 'danny'
 """ Scrapes information about
 	individual food carts. To be called by foodcarts.py"""
 
-import re
 import csv
-import os
-from types import *
 import sys
 
+import re
+import os
+from types import *
 import requests
 import bs4
 
@@ -31,6 +31,7 @@ class FoodCart():
 		self.location = ''
 		self.hours = ''
 		self.story = ''
+		self.scrape_div()
 
 	# self.name = self.cartdict['cart_name']
 	# self.url = self.cartdict['cart_url']
@@ -38,7 +39,7 @@ class FoodCart():
 	# self.hours = self.cartdict['hours']
 	# self.story = self.cartdict['story']
 
-	@property
+	# @property
 	def scrape_div (self):
 		"""
 		Scrapes individual cart information from div
@@ -79,7 +80,7 @@ class FoodCart():
 		except BaseException as e:
 			print("Couldn't find {} story".format(cart_name))
 			story = ''
-			print e
+			print(e)
 
 		hours = str(repr(post.contents[2].contents[-1]))
 		hourlist = [re.compile(r'<strong>Hours:(.*)</strong>'),
@@ -105,9 +106,9 @@ def find_carts (url):
 	:param url: URL of pod page
 	:return: List of dicts containing individual cart info
 	"""
-	print 'retrieving', url
+	print('retrieving' + url)
 	r = requests.get(url, headers = UA)
-	print 'parsing'
+	print('parsing')
 	soup = bs4.BeautifulSoup(r.content)
 
 	# all carts are cleanly stored within <div id="content">
@@ -125,7 +126,7 @@ def find_carts (url):
 			_cart = FoodCart(cart)
 			# cartlist.append(_cart.scrape_div() if _cart)
 			if _cart:
-				cartlist.append(_cart.scrape_div)
+				cartlist.append(_cart)
 
 		page += 1
 		# creates an additional list for carts on the next page
@@ -137,13 +138,13 @@ def find_carts (url):
 			_cart = FoodCart(cart)
 			# cartlist.append(_cart.scrape_div() if _cart.exists)
 			if _cart:
-				cartlist.append(_cart.scrape_div)
+				cartlist.append(_cart)
 		return cartlist
 	else:  # single page pods, scrape all carts
 		for cart in carts:
 			_cart = FoodCart(cart)
 			if _cart:
-				cartlist.append(_cart.scrape_div)
+				cartlist.append(_cart)
 		return cartlist
 
 
@@ -185,7 +186,7 @@ def tofile (list, fname, boolcsv):
 					_csvwriter.writerow(cart)
 				except IOError, e:
 					print type(e), e
-			# for i, j in row.iteritems():
+				# for i, j in row.iteritems():
 		_csv.close()
 	else:
 		fname += '.html'
@@ -196,7 +197,7 @@ def tofile (list, fname, boolcsv):
 				cart.url, cart.name, cart.location, cart.hours)
 		# assert isinstance(cart, dict)
 		# _text += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-		# 	cart['cart_url'], cart['cart_name'], cart['location'], cart['hours'])
+		# cart['cart_url'], cart['cart_name'], cart['location'], cart['hours'])
 		try:
 			f = open(fname, 'w')
 			f.write(_text)
@@ -228,7 +229,7 @@ def main (url, boolcsv):
 
 	pod_carts = find_carts(url)
 	if pod_carts:  # the likelihood of this being False seems low / to have
-	# been caught elsewhere. to confirm
+		# been caught elsewhere. to confirm
 		tofile(pod_carts, filename, boolcsv)
 	else:
 		exit(1)
