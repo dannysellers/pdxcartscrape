@@ -4,7 +4,6 @@ __author__ = 'danny'
 	individual food carts. To be called by foodcarts.py"""
 
 import csv
-import sys
 
 import re
 import os
@@ -24,29 +23,26 @@ class FoodCart():
 		:param div: HTML element containing all information about the cart
 		:return: FoodCart object
 		"""
-		self.div = div  # is there any way to call scrape_div upon initialization,
-		# allowing the other variables to be set just upon construction? e.g. line 116
+		# self.div = div
 		self.name = ''
 		self.url = ''
 		self.location = ''
 		self.hours = ''
 		self.story = ''
-		self.scrape_div()
+		self.scrape_div(div)  # populates attributes
 
-	# self.name = self.cartdict['cart_name']
-	# self.url = self.cartdict['cart_url']
-	# self.location = self.cartdict['location']
-	# self.hours = self.cartdict['hours']
-	# self.story = self.cartdict['story']
+	# def __repr__ (self):
+	# return {'cart_name': self.name, 'cart_url': self.url, 'location': self.location,
+	# 			'hours': self.hours, 'story': self.story}
 
 	# @property
-	def scrape_div (self):
+	def scrape_div (self, div):
 		"""
 		Scrapes individual cart information from div
 		:return: information for class properties
 		"""
-		title = self.div.find('a', {'rel': 'bookmark'})
-		post = self.div.find('div', {'class': 'entry-content'})
+		title = div.find('a', {'rel': 'bookmark'})
+		post = div.find('div', {'class': 'entry-content'})
 		try:
 			cart_url = title.get('href')
 
@@ -96,8 +92,9 @@ class FoodCart():
 		self.hours = hours
 		self.story = story
 
-		return {'cart_name': self.name, 'cart_url': self.url, 'location': self.location, 'hours': self.hours,
-				'story': self.story}
+	def __str__(self):
+		return "cart_name, {0}, cart_url, {1}, location, {2}, hours, {3}, story, {4}".format(
+			self.name, self.url, self.location, self.hours, self.story)
 
 
 def find_carts (url):
@@ -106,7 +103,7 @@ def find_carts (url):
 	:param url: URL of pod page
 	:return: List of dicts containing individual cart info
 	"""
-	print('retrieving' + url)
+	print('retrieving ' + url)
 	r = requests.get(url, headers = UA)
 	print('parsing')
 	soup = bs4.BeautifulSoup(r.content)
@@ -130,15 +127,25 @@ def find_carts (url):
 
 		page += 1
 		# creates an additional list for carts on the next page
-		_cartlist.append(find_carts(url + 'page/{}'.format(page)))
+
+		if not re.search(r'page\/\d$', url):
+			_cartlist.append(find_carts(url + 'page/{}'.format(page)))
+		else:
+			page += 1
+			_cartlist.append(find_carts(url.rstrip(re.search(r'page/\d$', url).group()) + '/page/{}'.format(page)))
 		# extracts items from the list, rather than having nested lists of variable depth
-		cartlist.append(_cart for _cart in _cartlist)
+		for _cart in _cartlist:
+			cartlist.append(_cart)
+		return cartlist
 	elif 'Previous Page' in str(carts[-1]) and 'Next Page' not in str(carts[-1]):  # the final page
 		for cart in carts[:-1]:
 			_cart = FoodCart(cart)
 			# cartlist.append(_cart.scrape_div() if _cart.exists)
 			if _cart:
-				cartlist.append(_cart)
+				if not isinstance(_cart, list):
+					cartlist.append(_cart)
+				else:
+					cartlist.append()
 		return cartlist
 	else:  # single page pods, scrape all carts
 		for cart in carts:
@@ -174,19 +181,27 @@ def tofile (list, fname, boolcsv):
 	"""
 	if boolcsv:
 		fname += '.csv'
-		fieldnames = [i for i in list[0]]  # dict at text[0] should contain headers
+		assert isinstance(list[0], FoodCart)
+		fieldnames = [i for i, j in vars(list[0]).iteritems()]
 		assert type(fieldnames) is ListType
 		_csv = open(fname, 'w')  # 'w' here? or 'wb'?
 		_csvwriter = csv.DictWriter(_csv, fieldnames = fieldnames, delimiter = ',', quotechar = '"')
 		_csvwriter.writeheader()
 
 		for cart in list:
-			if cart and type(cart) == dict:
+			if isinstance(cart, FoodCart):
 				try:
-					_csvwriter.writerow(cart)
+					_csvwriter.writerow(dict(vars(cart).iteritems()))
 				except IOError, e:
 					print type(e), e
 				# for i, j in row.iteritems():
+			else:
+				for _cart in cart:
+					try:
+						_csvwriter.writerow(dict(vars(_cart).iteritems()))
+					except IOError, e:
+						print type(e), e
+
 		_csv.close()
 	else:
 		fname += '.html'
@@ -225,20 +240,23 @@ def main (url, boolcsv):
 	"""
 	folder = 'carts/'
 	ensure_dir(folder)  # puts the location files into their own folder
-	filename = folder + str(re.findall(r'/location/*/\S+/(\S+)/$', url)[0])
+	filename = folder + str(re.findall(r'/location/*/\S+/([\S+$]|[/\S+/page/\d$])', url)[0])
 
 	pod_carts = find_carts(url)
-	if pod_carts:  # the likelihood of this being False seems low / to have
+	# pass
+	if pod_carts:   # the likelihood of this being False seems low / to have
 		# been caught elsewhere. to confirm
 		tofile(pod_carts, filename, boolcsv)
 	else:
+		print("*Error, no result returned*")
 		exit(1)
 
 
 if __name__ == '__main__':
 	if len(sys.argv) < 2:  # sys.argv[0] is the name of the script itself
-		url = 'http://www.foodcartsportland.com/category/location/southeast-portland-location/se-13th-and-lexington/'
+		# url = 'http://www.foodcartsportland.com/category/location/southeast-portland-location/se-13th-and-lexington/'
 		# url = 'http://www.foodcartsportland.com/category/location/southeast-portland-location/cartlandia/'
+		url = 'http://www.foodcartsportland.com/category/location/southeast-portland-location/se-52nd-and-foster/page/3'
 		main(url, True)
 	else:
 		# regex for sys.argv[1] url
